@@ -3,14 +3,13 @@ package jm.task.core.jdbc.dao;
 import jm.task.core.jdbc.model.User;
 import jm.task.core.jdbc.util.Util;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
+    private final Connection con = Util.getConnection();
+
     public UserDaoJDBCImpl() {
     }
 
@@ -23,8 +22,7 @@ public class UserDaoJDBCImpl implements UserDao {
                 user_age TINYINT NOT NULL,
                 PRIMARY KEY (user_id))
                 """;
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
+        try (Statement statement = con.createStatement()) {
             statement.executeUpdate(createTableQuery);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -35,8 +33,7 @@ public class UserDaoJDBCImpl implements UserDao {
         String dropTableQuery = """
                 DROP TABLE IF EXISTS user_schema.user
                 """;
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
+        try (Statement statement = con.createStatement()) {
             statement.executeUpdate(dropTableQuery);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -44,12 +41,15 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        String insertQuery = String.format(
-                "INSERT INTO user_schema.user (user_name, user_lastName, user_age) " +
-                "VALUES ('%s', '%s', '%d')", name, lastName, age);
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
-            statement.executeUpdate(insertQuery);
+        String insertQuery = """
+                INSERT INTO user_schema.user (user_name, user_lastName, user_age)
+                        VALUES (?, ?, ?)
+                                """;
+        try (PreparedStatement preparedStatement = con.prepareStatement(insertQuery)) {
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, lastName);
+            preparedStatement.setByte(3, age);
+            preparedStatement.execute();
             System.out.printf("User с именем – %s добавлен в базу данных\n", name);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -57,11 +57,12 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void removeUserById(long id) {
-        String deleteQuery = String.format(
-                "DELETE FROM user_schema.user WHERE user_id = %d", id);
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
-            statement.executeUpdate(deleteQuery);
+        String deleteQuery = """
+                DELETE FROM user_schema.user WHERE user_id = ?
+                """;
+        try (PreparedStatement prepareStatement = con.prepareStatement(deleteQuery)) {
+            prepareStatement.setLong(1, id);
+            prepareStatement.execute();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -72,8 +73,7 @@ public class UserDaoJDBCImpl implements UserDao {
                 SELECT * FROM user_schema.user
                 """;
         List<User> users = new ArrayList<>();
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
+        try (Statement statement = con.createStatement()) {
             statement.executeQuery(getUsersQuery);
             ResultSet resultSet = statement.executeQuery(getUsersQuery);
             while (resultSet.next()) {
@@ -94,8 +94,7 @@ public class UserDaoJDBCImpl implements UserDao {
         String clearTableQuery = """
                 TRUNCATE user_schema.user
                 """;
-        try (Connection con = Util.getConnection();
-             Statement statement = con.createStatement()) {
+        try (Statement statement = con.createStatement()) {
             statement.executeUpdate(clearTableQuery);
         } catch (SQLException e) {
             e.printStackTrace();
